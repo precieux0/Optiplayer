@@ -1,107 +1,36 @@
-name: 🏗️ Build & Package OptiPlayer Installer
+name: 🏗️ Build OptiPlayer
 
 on:
   push:
-    branches: [ main, master, develop ]
-  pull_request:
-    branches: [ main, master ]
-  release:
-    types: [ published ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  build-windows:
-    name: 🪟 Windows Build
+  build:
     runs-on: windows-latest
     
     steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
-
-      - name: 🔧 Setup MSVC
+      - uses: actions/checkout@v4
+      
+      - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
-
-      - name: 📦 Setup CMake
-        uses: lukka/get-cmake@latest
-
-      - name: 🎯 Setup Ninja
-        uses: seanmiddleditch/gha-setup-ninja@v4
-
-      - name: 🔨 Setup vcpkg (with specific commit)
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: '524caefd2b6bcf0a470f7b652cbbea793ca67a16'  # Dernier commit stable
-
-      - name: 🔧 Setup vcpkg (alternative method)
+      
+      - name: Setup vcpkg
         run: |
           git clone https://github.com/Microsoft/vcpkg.git
           .\vcpkg\bootstrap-vcpkg.bat
-          echo "VCPKG_INSTALLATION_ROOT=$env:GITHUB_WORKSPACE\vcpkg" >> $env:GITHUB_ENV
-
-      - name: 📥 Install dependencies (direct vcpkg)
+      
+      - name: Install dependencies
         run: |
-          .\vcpkg\vcpkg install ffmpeg[x264,x265,mp3,lzma,openssl] --triplet x64-windows
-          .\vcpkg\vcpkg install libmpv --triplet x64-windows
-          .\vcpkg\vcpkg install fmt spdlog nlohmann-json --triplet x64-windows
-          .\vcpkg\vcpkg install catch2 --triplet x64-windows
-
-      - name: 🏗️ Configure CMake
+          .\vcpkg\vcpkg install ffmpeg libmpv fmt spdlog nlohmann-json catch2 --triplet x64-windows
+      
+      - name: Build
         run: |
-          cmake -B build -G Ninja `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" `
-            -DENABLE_TESTS=ON `
-            -DENABLE_INSTALLER=ON
-
-      - name: 🔨 Build OptiPlayer
-        run: cmake --build build --config Release --parallel
-
-      - name: 🧪 Run Tests
-        run: |
-          if (Test-Path "build/OptiPlayer-Release/OptiPlayer.exe") {
-            echo "✅ Build successful!"
-          } else {
-            echo "❌ Build failed!"
-            exit 1
-          }
-
-      - name: 📦 Package Portable Version (ZIP)
-        run: |
-          mkdir artifacts -Force
-          if (Test-Path "build/OptiPlayer-Release") {
-            Compress-Archive -Path build/OptiPlayer-Release/* -DestinationPath artifacts/OptiPlayer-Portable.zip -Force
-          }
-
-      - name: 🖼️ Generate Installer (Inno Setup)
-        run: |
-          # Télécharger Inno Setup
-          choco install innosetup -y --no-progress
-          
-          # Compiler l'installateur
-          if (Test-Path "installer/OptiPlayer.iss") {
-            & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer/OptiPlayer.iss /Q
-          }
-
-      - name: 📦 Upload Artifacts
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake"
+          cmake --build build --config Release
+      
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: OptiPlayer-Windows-${{ github.sha }}
-          path: |
-            artifacts/
-            installer/OptiPlayer-Setup-*.exe
-            build/OptiPlayer-Release/
-          retention-days: 30
-
-      - name: 🚀 Create Release (if tag)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            artifacts/OptiPlayer-Portable.zip
-            installer/OptiPlayer-Setup-*.exe
-          generate_release_notes: true
-          draft: false
-          prerelease: false
+          name: OptiPlayer
+          path: build/OptiPlayer-Release/
