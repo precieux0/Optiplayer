@@ -4,7 +4,12 @@ add_library(OptiPlayerCore STATIC
     syncing.cpp
 )
 
-target_include_directories(OptiPlayerCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(OptiPlayerCore 
+    PUBLIC 
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
 
 if(WIN32)
     target_link_libraries(OptiPlayerCore
@@ -17,10 +22,16 @@ if(WIN32)
     )
 else()
     target_link_libraries(OptiPlayerCore
-        PkgConfig::FFMPEG
-        PkgConfig::MPV
-        fmt::fmt
-        spdlog::spdlog
-        nlohmann_json::nlohmann_json
+        PRIVATE
+            PkgConfig::FFMPEG
+            PkgConfig::MPV
+            fmt::fmt
+            spdlog::spdlog
+            nlohmann_json::nlohmann_json
     )
 endif()
+
+# Propriétés
+set_target_properties(OptiPlayerCore PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+)

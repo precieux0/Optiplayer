@@ -1,10 +1,25 @@
 add_executable(OptiPlayerUI WIN32
-    mainwindow.cpp
     main.cpp
+    mainwindow.cpp
 )
 
-target_link_libraries(OptiPlayerUI OptiPlayerCore)
-target_include_directories(OptiPlayerUI PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(OptiPlayerUI 
+    PRIVATE
+        OptiPlayerCore
+        comctl32
+        gdi32
+        user32
+        kernel32
+        ole32
+        shell32
+        uuid
+)
+
+target_include_directories(OptiPlayerUI 
+    PRIVATE 
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../core
+)
 
 set_target_properties(OptiPlayerUI PROPERTIES
     OUTPUT_NAME "OptiPlayer"
