@@ -1,0 +1,84 @@
+name: 🏗️ Build OptiPlayer Full
+
+on:
+  push:
+    branches: [ main ]
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+      
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+      
+      - name: Download dependencies
+        run: |
+          # FFmpeg
+          curl -L -o ffmpeg.7z https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z
+          7z x ffmpeg.7z -offmpeg
+          $ffmpegDir = (Get-ChildItem -Path ffmpeg -Directory)[0].FullName
+          echo "FFMPEG_DIR=$ffmpegDir" >> $env:GITHUB_ENV
+          
+          # libmpv
+          curl -L -o mpv.7z https://sourceforge.net/projects/mpv-player-windows/files/libmpv/mpv-dev-x86_64-20230226.7z/download
+          7z x mpv.7z -ompv
+          echo "MPV_DIR=$env:GITHUB_WORKSPACE/mpv" >> $env:GITHUB_ENV
+          
+          # vcpkg pour les petits libs
+          git clone https://github.com/Microsoft/vcpkg.git
+          .\vcpkg\bootstrap-vcpkg.bat
+          .\vcpkg\vcpkg install fmt spdlog nlohmann-json --triplet x64-windows
+      
+      - name: Build
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DFFMPEG_ROOT="$env:FFMPEG_DIR" `
+            -DMPV_ROOT="$env:MPV_DIR"
+          cmake --build build --config Release --parallel
+      
+      - name: Package
+        run: |
+          # Créer dossier de distribution
+          mkdir dist -Force
+          
+          # Copier l'exécutable
+          copy build\Release\OptiPlayer.exe dist\
+          
+          # Copier toutes les DLLs
+          copy "$env:MPV_DIR\mpv-1.dll" dist\
+          copy "$env:FFMPEG_DIR\bin\*.dll" dist\
+          copy build\Release\*.dll dist\
+          
+          # Créer le ZIP portable
+          Compress-Archive -Path dist\* -DestinationPath OptiPlayer-Portable.zip
+          
+          # Créer l'installateur
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer/OptiPlayer.iss /Q
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: OptiPlayer-Release
+          path: |
+            OptiPlayer-Portable.zip
+            installer/OptiPlayer-Setup-*.exe
+      
+      - name: Upload to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            OptiPlayer-Portable.zip
+            installer/OptiPlayer-Setup-*.exe
+          generate_release_notes: true

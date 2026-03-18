@@ -25,3 +25,37 @@ if(ENABLE_INSTALLER)
     set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
     include(CPack)
 endif()
+
+# Support for manually downloaded FFmpeg
+if(DEFINED ENV{FFMPEG_DIR})
+    set(FFMPEG_ROOT $ENV{FFMPEG_DIR})
+    message(STATUS "Using FFmpeg from: ${FFMPEG_ROOT}")
+endif()
+
+# Support for manually downloaded libmpv
+if(DEFINED ENV{MPV_DIR})
+    set(MPV_ROOT $ENV{MPV_DIR})
+    message(STATUS "Using MPV from: ${MPV_ROOT}")
+    
+    # Trouver libmpv
+    find_path(MPV_INCLUDE_DIR
+        NAMES mpv/client.h
+        PATHS ${MPV_ROOT}/include
+        NO_DEFAULT_PATH
+    )
+    
+    find_library(MPV_LIBRARY
+        NAMES mpv mpv-1
+        PATHS ${MPV_ROOT}/lib ${MPV_ROOT}
+        NO_DEFAULT_PATH
+    )
+    
+    if(MPV_INCLUDE_DIR AND MPV_LIBRARY)
+        add_library(MPV::libmpv UNKNOWN IMPORTED)
+        set_target_properties(MPV::libmpv PROPERTIES
+            IMPORTED_LOCATION "${MPV_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${MPV_INCLUDE_DIR}"
+        )
+        message(STATUS "Found MPV: ${MPV_LIBRARY}")
+    endif()
+endif()
