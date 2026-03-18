@@ -1,0 +1,10 @@
+/* Version debug pour tester Roboto */
+* {
+    font-family: 'Roboto', sans-serif;
+}
+
+QLabel {
+    color: #ff6b6b;
+    font-size: 14pt;
+    font-weight: bold;
+}

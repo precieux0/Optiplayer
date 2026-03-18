@@ -1,0 +1,23 @@
+# Build
+build/
+cmake-build-*/
+*.exe
+*.dll
+*.lib
+*.pdb
+
+# IDE
+.vs/
+.idea/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+
+# Cache
+*.log
+*.tmp
+cache/
+*.cache
+
+# Dependencies
+vcpkg_installed/

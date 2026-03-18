@@ -1,0 +1,80 @@
+name: 🏗️ Build & Package OptiPlayer Installer
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: 🪟 Windows Build
+    runs-on: windows-latest
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: 🔧 Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: 📦 Setup CMake
+        uses: lukka/get-cmake@latest
+
+      - name: 🎯 Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v4
+
+      - name: 🔨 Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 'latest'
+
+      - name: 📥 Install dependencies
+        run: |
+          vcpkg install ffmpeg[x264,x265,mp3,lzma,openssl] --triplet x64-windows
+          vcpkg install libmpv --triplet x64-windows
+          vcpkg install fmt spdlog nlohmann-json --triplet x64-windows
+
+      - name: 🏗️ Configure CMake
+        run: |
+          cmake -B build -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DENABLE_INSTALLER=ON
+
+      - name: 🔨 Build OptiPlayer
+        run: cmake --build build --config Release --parallel
+
+      - name: 📦 Package Portable
+        run: |
+          mkdir artifacts
+          Compress-Archive -Path build/OptiPlayer-Release/* -DestinationPath artifacts/OptiPlayer-Portable.zip
+
+      - name: 🖼️ Generate Installer
+        run: |
+          choco install innosetup -y
+          iscc /Q installer/OptiPlayer.iss
+
+      - name: 📦 Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: OptiPlayer-Windows-${{ github.sha }}
+          path: |
+            artifacts/
+            installer/OptiPlayer-Setup-*.exe
+          retention-days: 30
+
+      - name: 🚀 Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/OptiPlayer-Portable.zip
+            installer/OptiPlayer-Setup-*.exe
+          generate_release_notes: true

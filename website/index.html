@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OptiPlayer - Le lecteur qui rend VLC obsolète</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 60px 0;
+        }
+        
+        h1 {
+            font-size: 4em;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #fff, #f0f0f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .subtitle {
+            font-size: 1.5em;
+            opacity: 0.9;
+            margin-bottom: 40px;
+        }
+        
+        .download-btn {
+            display: inline-block;
+            background: #ff6b6b;
+            color: white;
+            padding: 20px 50px;
+            font-size: 1.5em;
+            border-radius: 50px;
+            text-decoration: none;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin: 20px 0;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 80px 0;
+        }
+        
+        .feature {
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .feature h3 {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin: 5px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 40px 0;
+            opacity: 0.8;
+            font-size: 0.9em;
+        }
+        
+        .vs-card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 40px 0;
+        }
+        
+        .comparison {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+        
+        .vs-item {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .check { color: #4caf50; font-size: 1.2em; }
+        .cross { color: #ff5252; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎬 OptiPlayer</h1>
+            <div class="subtitle">Le lecteur multimédia qui rend VLC obsolète</div>
+            <a href="#" class="download-btn">⬇️ Télécharger gratuitement</a>
+            <p style="margin-top: 20px;">Version 1.0.0 • Windows 8/10/11 • 100% gratuit</p>
+        </header>
+        
+        <div class="vs-card">
+            <h2 style="text-align: center; margin-bottom: 30px;">Pourquoi choisir OptiPlayer ?</h2>
+            <div class="comparison">
+                <div class="vs-item">
+                    <h3>❌ VLC</h3>
+                    <p><span class="cross">✗</span> Saccades fréquentes</p>
+                    <p><span class="cross">✗</span> Désynchronisation A/V</p>
+                    <p><span class="cross">✗</span> Interface datée</p>
+                    <p><span class="cross">✗</span> Configuration complexe</p>
+                </div>
+                <div class="vs-item">
+                    <h3>✅ OptiPlayer</h3>
+                    <p><span class="check">✓</span> Lecture fluide garantie</p>
+                    <p><span class="check">✓</span> Magic Sync automatique</p>
+                    <p><span class="check">✓</span> Design moderne WinUI</p>
+                    <p><span class="check">✓</span> Prêt à l'emploi</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="features">
+            <div class="feature">
+                <h3>⚡ Magic Sync 2.0</h3>
+                <p>Correction automatique de la désynchronisation audio/vidéo en temps réel</p>
+            </div>
+            <div class="feature">
+                <h3>🎞️ Video Restorer</h3>
+                <p>Redonnez vie à vos vieilles vidéos de famille (nettoyage, stabilisation)</p>
+            </div>
+            <div class="feature">
+                <h3>🌐 TorrentPlay</h3>
+                <p>Streaming direct sans attendre le téléchargement complet</p>
+            </div>
+            <div class="feature">
+                <h3>🔒 Privacy First</h3>
+                <p>0 collecte de données, 0 pistage, 100% respectueux de votre vie privée</p>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin: 60px 0;">
+            <h2>Tous les formats supportés</h2>
+            <div style="margin-top: 20px;">
+                <span class="badge">MP4</span>
+                <span class="badge">MKV</span>
+                <span class="badge">AVI</span>
+                <span class="badge">MOV</span>
+                <span class="badge">WMV</span>
+                <span class="badge">FLV</span>
+                <span class="badge">MP3</span>
+                <span class="badge">FLAC</span>
+                <span class="badge">AAC</span>
+                <span class="badge">OGG</span>
+                <span class="badge">SRT</span>
+                <span class="badge">ASS</span>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Développé avec ❤️ par OKITAKOY Inc.</p>
+            <p>Fondateur : Précieux Okitakoy</p>
+            <p style="margin-top: 20px;">© 2026 OKITAKOY Inc. - <a href="#" style="color: white;">optiplayer.onrender.com</a></p>
+        </div>
+    </div>
+</body>
+</html>
