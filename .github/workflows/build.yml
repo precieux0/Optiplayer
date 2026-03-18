@@ -28,22 +28,44 @@ jobs:
           7z x ffmpeg.7z -offmpeg
           $ffmpegDir = (Get-ChildItem -Path ffmpeg -Directory)[0].FullName
           echo "FFMPEG_DIR=$ffmpegDir" >> $env:GITHUB_ENV
-          echo "✅ FFmpeg downloaded"
+          echo "✅ FFmpeg downloaded to: $ffmpegDir"
+          
+          # Vérifier que les fichiers existent
+          if (Test-Path "$ffmpegDir/include/libavcodec/avcodec.h") {
+            echo "✅ FFmpeg headers found"
+          } else {
+            echo "❌ FFmpeg headers missing"
+            exit 1
+          }
       
       - name: Download libmpv
         run: |
           curl -L -o mpv.7z https://sourceforge.net/projects/mpv-player-windows/files/libmpv/mpv-dev-x86_64-20230226.7z/download
           7z x mpv.7z -ompv
-          echo "MPV_DIR=$env:GITHUB_WORKSPACE/mpv" >> $env:GITHUB_ENV
-          echo "✅ libmpv downloaded"
+          $mpvDir = "$env:GITHUB_WORKSPACE/mpv"
+          echo "MPV_DIR=$mpvDir" >> $env:GITHUB_ENV
+          echo "✅ libmpv downloaded to: $mpvDir"
+          
+          # Vérifier que les fichiers existent
+          if (Test-Path "$mpvDir/include/mpv/client.h") {
+            echo "✅ MPV headers found"
+          } else {
+            echo "❌ MPV headers missing"
+            exit 1
+          }
+          
+          if (Test-Path "$mpvDir/mpv-1.lib") {
+            echo "✅ MPV library found"
+          } else {
+            echo "❌ MPV library missing"
+            exit 1
+          }
       
       - name: Configure CMake
         run: |
           cmake -B build -G "Visual Studio 17 2022" -A x64 `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
-            -DFFMPEG_ROOT="$env:FFMPEG_DIR" `
-            -DMPV_ROOT="$env:MPV_DIR"
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
       
       - name: Build
         run: cmake --build build --config Release --parallel
@@ -51,11 +73,16 @@ jobs:
       - name: Prepare distribution
         run: |
           mkdir dist -Force
-          copy build\Release\OptiPlayer.exe dist\
-          copy "$env:MPV_DIR\mpv-1.dll" dist\
-          copy "$env:FFMPEG_DIR\bin\*.dll" dist\
-          copy build\Release\*.dll dist\
-          echo "✅ Distribution ready"
+          if (Test-Path "build/Release/OptiPlayer.exe") {
+            copy build\Release\*.exe dist\
+            copy "$env:MPV_DIR\mpv-1.dll" dist\
+            copy "$env:FFMPEG_DIR\bin\*.dll" dist\
+            copy build\Release\*.dll dist\
+            echo "✅ Distribution ready"
+          } else {
+            echo "❌ Build failed - executable not found"
+            exit 1
+          }
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
