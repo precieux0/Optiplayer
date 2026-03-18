@@ -1,0 +1,64 @@
+name: 🏗️ Build OptiPlayer
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+      
+      - name: Install vcpkg dependencies
+        run: |
+          git clone https://github.com/Microsoft/vcpkg.git
+          .\vcpkg\bootstrap-vcpkg.bat
+          .\vcpkg\vcpkg install fmt spdlog nlohmann-json --triplet x64-windows
+          echo "VCPKG_ROOT=$env:GITHUB_WORKSPACE/vcpkg" >> $env:GITHUB_ENV
+      
+      - name: Download FFmpeg
+        run: |
+          curl -L -o ffmpeg.7z https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z
+          7z x ffmpeg.7z -offmpeg
+          $ffmpegDir = (Get-ChildItem -Path ffmpeg -Directory)[0].FullName
+          echo "FFMPEG_DIR=$ffmpegDir" >> $env:GITHUB_ENV
+          echo "✅ FFmpeg downloaded"
+      
+      - name: Download libmpv
+        run: |
+          curl -L -o mpv.7z https://sourceforge.net/projects/mpv-player-windows/files/libmpv/mpv-dev-x86_64-20230226.7z/download
+          7z x mpv.7z -ompv
+          echo "MPV_DIR=$env:GITHUB_WORKSPACE/mpv" >> $env:GITHUB_ENV
+          echo "✅ libmpv downloaded"
+      
+      - name: Configure CMake
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DFFMPEG_ROOT="$env:FFMPEG_DIR" `
+            -DMPV_ROOT="$env:MPV_DIR"
+      
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      
+      - name: Prepare distribution
+        run: |
+          mkdir dist -Force
+          copy build\Release\OptiPlayer.exe dist\
+          copy "$env:MPV_DIR\mpv-1.dll" dist\
+          copy "$env:FFMPEG_DIR\bin\*.dll" dist\
+          copy build\Release\*.dll dist\
+          echo "✅ Distribution ready"
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: OptiPlayer
+          path: dist/
