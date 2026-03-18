@@ -91,3 +91,21 @@ if(ENABLE_INSTALLER)
     set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
     include(CPack)
 endif()
+
+# Ajouter les fichiers sources manquants
+target_sources(OptiPlayerCore PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/decoder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/syncing.cpp
+)
+
+# Lier les bibliothèques Windows
+target_link_libraries(OptiPlayerUI PRIVATE
+    comctl32
+    gdi32
+    user32
+    kernel32
+)
+
+# Inclure les répertoires
+target_include_directories(OptiPlayerCore PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(OptiPlayerUI PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

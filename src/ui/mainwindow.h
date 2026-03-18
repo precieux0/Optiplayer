@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
-#include "../core/player.h"
+#include <windows.h>  // IMPORTANT: pour HWND, HFONT, etc.
+
+class Player;  // Forward declaration
 
 class MainWindow {
 public:
@@ -20,8 +22,8 @@ public:
 
 private:
     Player* player;
-    void* hwnd; // Window handle
-    HFONT hRobotoFont; // Police Roboto
+    HWND hwnd;  // Window handle - changer void* en HWND
+    HFONT hRobotoFont;  // Police Roboto
     
     void createWindow();
     void messageLoop();
