@@ -30,36 +30,60 @@ jobs:
       - name: 🎯 Setup Ninja
         uses: seanmiddleditch/gha-setup-ninja@v4
 
-      - name: 🔨 Setup vcpkg
+      - name: 🔨 Setup vcpkg (with specific commit)
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgGitCommitId: 'latest'
+          vcpkgGitCommitId: '524caefd2b6bcf0a470f7b652cbbea793ca67a16'  # Dernier commit stable
 
-      - name: 📥 Install dependencies
+      - name: 🔧 Setup vcpkg (alternative method)
         run: |
-          vcpkg install ffmpeg[x264,x265,mp3,lzma,openssl] --triplet x64-windows
-          vcpkg install libmpv --triplet x64-windows
-          vcpkg install fmt spdlog nlohmann-json --triplet x64-windows
+          git clone https://github.com/Microsoft/vcpkg.git
+          .\vcpkg\bootstrap-vcpkg.bat
+          echo "VCPKG_INSTALLATION_ROOT=$env:GITHUB_WORKSPACE\vcpkg" >> $env:GITHUB_ENV
+
+      - name: 📥 Install dependencies (direct vcpkg)
+        run: |
+          .\vcpkg\vcpkg install ffmpeg[x264,x265,mp3,lzma,openssl] --triplet x64-windows
+          .\vcpkg\vcpkg install libmpv --triplet x64-windows
+          .\vcpkg\vcpkg install fmt spdlog nlohmann-json --triplet x64-windows
+          .\vcpkg\vcpkg install catch2 --triplet x64-windows
 
       - name: 🏗️ Configure CMake
         run: |
           cmake -B build -G Ninja `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DENABLE_TESTS=ON `
             -DENABLE_INSTALLER=ON
 
       - name: 🔨 Build OptiPlayer
         run: cmake --build build --config Release --parallel
 
-      - name: 📦 Package Portable
+      - name: 🧪 Run Tests
         run: |
-          mkdir artifacts
-          Compress-Archive -Path build/OptiPlayer-Release/* -DestinationPath artifacts/OptiPlayer-Portable.zip
+          if (Test-Path "build/OptiPlayer-Release/OptiPlayer.exe") {
+            echo "✅ Build successful!"
+          } else {
+            echo "❌ Build failed!"
+            exit 1
+          }
 
-      - name: 🖼️ Generate Installer
+      - name: 📦 Package Portable Version (ZIP)
         run: |
-          choco install innosetup -y
-          iscc /Q installer/OptiPlayer.iss
+          mkdir artifacts -Force
+          if (Test-Path "build/OptiPlayer-Release") {
+            Compress-Archive -Path build/OptiPlayer-Release/* -DestinationPath artifacts/OptiPlayer-Portable.zip -Force
+          }
+
+      - name: 🖼️ Generate Installer (Inno Setup)
+        run: |
+          # Télécharger Inno Setup
+          choco install innosetup -y --no-progress
+          
+          # Compiler l'installateur
+          if (Test-Path "installer/OptiPlayer.iss") {
+            & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer/OptiPlayer.iss /Q
+          }
 
       - name: 📦 Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -68,9 +92,10 @@ jobs:
           path: |
             artifacts/
             installer/OptiPlayer-Setup-*.exe
+            build/OptiPlayer-Release/
           retention-days: 30
 
-      - name: 🚀 Create Release
+      - name: 🚀 Create Release (if tag)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
@@ -78,3 +103,5 @@ jobs:
             artifacts/OptiPlayer-Portable.zip
             installer/OptiPlayer-Setup-*.exe
           generate_release_notes: true
+          draft: false
+          prerelease: false

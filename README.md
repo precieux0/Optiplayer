@@ -1,6 +1,6 @@
 # 🎬 OptiPlayer - Le lecteur qui rend VLC obsolète
 
-[![Build Status](https://github.com/okitakoy-inc/OptiPlayer/actions/workflows/build-installer.yml/badge.svg)](https://github.com/okitakoy-inc/OptiPlayer/actions)
+[![Build Status](https://github.com/precieux0/OptiPlayer/actions/workflows/build-installer.yml/badge.svg)](https://github.com/precieux0/OptiPlayer/actions)
 [![Windows Support](https://img.shields.io/badge/Windows-8%2F10%2F11-blue)](https://www.microsoft.com/windows)
 [![License](https://img.shields.io/badge/license-GPLv3-green)](LICENSE)
 [![Website](https://img.shields.io/badge/web-optiplayer.onrender.com-purple)](https://optiplayer.onrender.com)
@@ -13,12 +13,12 @@
 - 🔒 Privacy First - 0 collecte de données
 
 ## 📥 Téléchargement
-- [Version portable (ZIP)](https://github.com/okitakoy-inc/OptiPlayer/releases/latest)
-- [Installateur (EXE)](https://github.com/okitakoy-inc/OptiPlayer/releases/latest)
+- [Version portable (ZIP)](https://github.com/precieux0/OptiPlayer/releases/latest)
+- [Installateur (EXE)](https://github.com/precieux0/OptiPlayer/releases/latest)
 
 ## 🛠️ Build
 ```bash
-git clone https://github.com/okitakoy-inc/OptiPlayer.git
+git clone https://github.com/precieux0/OptiPlayer.git
 cd OptiPlayer
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release

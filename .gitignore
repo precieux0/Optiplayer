@@ -12,6 +12,8 @@ cmake-build-*/
 *.sln
 *.vcxproj
 *.vcxproj.filters
+.backup
+*.backup
 
 # Cache
 *.log
