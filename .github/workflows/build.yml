@@ -1,42 +1,139 @@
-name: 🏗️ Build OptiPlayer
+name: 🏗️ Build OptiPlayer (Production)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  release:
+    types: [ published ]
   workflow_dispatch:
 
 jobs:
   build:
+    name: 🪟 Windows Build
     runs-on: windows-latest
     
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup MSVC
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔧 Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
-      
-      - name: Install vcpkg dependencies
+
+      - name: 📦 Setup vcpkg
         run: |
           git clone https://github.com/Microsoft/vcpkg.git
           cd vcpkg
           .\bootstrap-vcpkg.bat
-          .\vcpkg install fmt spdlog nlohmann-json --triplet x64-windows
-          cd ..
+          .\vcpkg integrate install
           echo "VCPKG_ROOT=$env:GITHUB_WORKSPACE/vcpkg" >> $env:GITHUB_ENV
-      
-      - name: Configure CMake (stub mode)
+          cd ..
+
+      - name: 📥 Install vcpkg dependencies
+        run: |
+          .\vcpkg\vcpkg install fmt spdlog nlohmann-json --triplet x64-windows
+
+      - name: 📥 Download FFmpeg
+        run: |
+          Write-Host "📦 Téléchargement de FFmpeg..." -ForegroundColor Green
+          curl -L -o ffmpeg.7z https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z
+          7z x ffmpeg.7z -offmpeg_temp -y
+          $ffmpegDir = (Get-ChildItem -Path ffmpeg_temp -Directory)[0].FullName
+          Move-Item $ffmpegDir/* ffmpeg/ -Force
+          Remove-Item ffmpeg_temp -Recurse -Force
+          Remove-Item ffmpeg.7z -Force
+          
+          # Vérification
+          if (Test-Path "ffmpeg/include/libavcodec/avcodec.h") {
+            Write-Host "✅ FFmpeg OK" -ForegroundColor Green
+            echo "FFMPEG_DIR=$env:GITHUB_WORKSPACE/ffmpeg" >> $env:GITHUB_ENV
+          } else {
+            Write-Host "❌ FFmpeg échec" -ForegroundColor Red
+            exit 1
+          }
+
+      - name: 📥 Download MPV
+        run: |
+          Write-Host "📦 Téléchargement de MPV..." -ForegroundColor Green
+          curl -L -o mpv.7z https://sourceforge.net/projects/mpv-player-windows/files/libmpv/mpv-dev-x86_64-20230226.7z/download
+          7z x mpv.7z -ompv -y
+          Remove-Item mpv.7z -Force
+          
+          # Vérification
+          if (Test-Path "mpv/include/mpv/client.h") {
+            Write-Host "✅ MPV OK" -ForegroundColor Green
+            echo "MPV_DIR=$env:GITHUB_WORKSPACE/mpv" >> $env:GITHUB_ENV
+          } else {
+            Write-Host "❌ MPV échec" -ForegroundColor Red
+            exit 1
+          }
+
+      - name: 🔧 Configure CMake
         run: |
           cmake -B build -G "Visual Studio 17 2022" -A x64 `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
-            -DUSE_SYSTEM_FFMPEG=OFF `
-            -DUSE_SYSTEM_MPV=OFF
-      
-      - name: Build
-        run: cmake --build build --config Release --parallel
-      
-      - name: Upload artifacts
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+
+      - name: 🔨 Build
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: 📦 Prepare distribution
+        run: |
+          mkdir dist -Force
+          
+          # Copier l'exécutable
+          if (Test-Path "build/Release/OptiPlayer.exe") {
+            Copy-Item "build/Release/OptiPlayer.exe" -Destination "dist/" -Force
+            Write-Host "✅ Exécutable copié" -ForegroundColor Green
+          } else {
+            Write-Host "❌ Exécutable non trouvé" -ForegroundColor Red
+            exit 1
+          }
+          
+          # Copier les DLLs
+          if (Test-Path "$env:MPV_DIR/mpv-1.dll") {
+            Copy-Item "$env:MPV_DIR/mpv-1.dll" -Destination "dist/" -Force
+          }
+          
+          if (Test-Path "$env:FFMPEG_DIR/bin") {
+            Copy-Item "$env:FFMPEG_DIR/bin/*.dll" -Destination "dist/" -Force
+          }
+          
+          if (Test-Path "build/Release/*.dll") {
+            Copy-Item "build/Release/*.dll" -Destination "dist/" -Force
+          }
+          
+          # Créer le ZIP portable
+          Compress-Archive -Path dist/* -DestinationPath OptiPlayer-Portable.zip -Force
+          
+          Write-Host "✅ Distribution prête" -ForegroundColor Green
+          Get-ChildItem dist
+
+      - name: 📤 Upload artifacts (EXE + DLLs)
         uses: actions/upload-artifact@v4
         with:
-          name: OptiPlayer
-          path: build/Release/
+          name: OptiPlayer-Full
+          path: dist/
+          retention-days: 30
+
+      - name: 📤 Upload ZIP portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: OptiPlayer-Portable
+          path: OptiPlayer-Portable.zip
+          retention-days: 30
+
+      - name: 🚀 Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            OptiPlayer-Portable.zip
+            dist/OptiPlayer.exe
+          generate_release_notes: true
+          draft: false
+          prerelease: false
