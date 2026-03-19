@@ -15,44 +15,49 @@ jobs:
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
       
-      - name: Install vcpkg dependencies
+      - name: Install vcpkg and dependencies
         run: |
+          # Cloner vcpkg
           git clone https://github.com/Microsoft/vcpkg.git
-          .\vcpkg\bootstrap-vcpkg.bat
-          .\vcpkg\vcpkg install fmt spdlog nlohmann-json --triplet x64-windows
+          cd vcpkg
+          
+          # Bootstrap vcpkg
+          .\bootstrap-vcpkg.bat
+          
+          # Intégrer à Visual Studio
+          .\vcpkg integrate install
+          
+          # Installer les packages nécessaires
+          .\vcpkg install fmt spdlog nlohmann-json --triplet x64-windows
+          
+          cd ..
           echo "VCPKG_ROOT=$env:GITHUB_WORKSPACE/vcpkg" >> $env:GITHUB_ENV
       
       - name: Download FFmpeg
         run: |
           curl -L -o ffmpeg.7z https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z
-          7z x ffmpeg.7z -offmpeg
+          7z x ffmpeg.7z -offmpeg -y
           $ffmpegDir = (Get-ChildItem -Path ffmpeg -Directory)[0].FullName
           echo "FFMPEG_DIR=$ffmpegDir" >> $env:GITHUB_ENV
           echo "✅ FFmpeg downloaded to: $ffmpegDir"
           
-          # DEBUG: Afficher la structure
-          echo "=== FFMPEG DIRECTORY STRUCTURE ==="
+          # Vérifier les dossiers
+          echo "=== FFMPEG STRUCTURE ==="
           dir $ffmpegDir
-          echo "=== INCLUDE FOLDER ==="
-          dir $ffmpegDir\include -Recurse -ErrorAction SilentlyContinue
-          echo "=== LIB FOLDER ==="
-          dir $ffmpegDir\lib -Recurse -ErrorAction SilentlyContinue
+          if (Test-Path "$ffmpegDir/include") { dir "$ffmpegDir/include" }
       
       - name: Download libmpv
         run: |
           curl -L -o mpv.7z https://sourceforge.net/projects/mpv-player-windows/files/libmpv/mpv-dev-x86_64-20230226.7z/download
-          7z x mpv.7z -ompv
+          7z x mpv.7z -ompv -y
           $mpvDir = "$env:GITHUB_WORKSPACE/mpv"
           echo "MPV_DIR=$mpvDir" >> $env:GITHUB_ENV
           echo "✅ libmpv downloaded to: $mpvDir"
           
-          # DEBUG: Afficher la structure
-          echo "=== MPV DIRECTORY STRUCTURE ==="
+          # Vérifier les dossiers
+          echo "=== MPV STRUCTURE ==="
           dir $mpvDir
-          echo "=== INCLUDE FOLDER ==="
-          dir $mpvDir\include -Recurse -ErrorAction SilentlyContinue
-          echo "=== LIB FOLDER ==="
-          dir $mpvDir\lib -Recurse -ErrorAction SilentlyContinue
+          if (Test-Path "$mpvDir/include") { dir "$mpvDir/include" }
       
       - name: Configure CMake
         run: |
@@ -68,12 +73,10 @@ jobs:
           mkdir dist -Force
           if (Test-Path "build/Release/OptiPlayer.exe") {
             copy build\Release\*.exe dist\
-            if (Test-Path "$env:MPV_DIR\mpv-1.dll") { copy "$env:MPV_DIR\mpv-1.dll" dist\ }
-            if (Test-Path "$env:FFMPEG_DIR\bin\*.dll") { copy "$env:FFMPEG_DIR\bin\*.dll" dist\ }
-            copy build\Release\*.dll dist\ -ErrorAction SilentlyContinue
-            echo "✅ Distribution ready"
+            copy build\Release\*.dll dist\ 2>$null
+            echo "✅ Build successful!"
           } else {
-            echo "❌ Build failed - executable not found"
+            echo "❌ Build failed"
             exit 1
           }
       
