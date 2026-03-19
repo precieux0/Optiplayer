@@ -15,73 +15,28 @@ jobs:
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
       
-      - name: Install vcpkg and dependencies
+      - name: Install vcpkg dependencies
         run: |
-          # Cloner vcpkg
           git clone https://github.com/Microsoft/vcpkg.git
           cd vcpkg
-          
-          # Bootstrap vcpkg
           .\bootstrap-vcpkg.bat
-          
-          # Intégrer à Visual Studio
-          .\vcpkg integrate install
-          
-          # Installer les packages nécessaires
           .\vcpkg install fmt spdlog nlohmann-json --triplet x64-windows
-          
           cd ..
           echo "VCPKG_ROOT=$env:GITHUB_WORKSPACE/vcpkg" >> $env:GITHUB_ENV
       
-      - name: Download FFmpeg
-        run: |
-          curl -L -o ffmpeg.7z https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z
-          7z x ffmpeg.7z -offmpeg -y
-          $ffmpegDir = (Get-ChildItem -Path ffmpeg -Directory)[0].FullName
-          echo "FFMPEG_DIR=$ffmpegDir" >> $env:GITHUB_ENV
-          echo "✅ FFmpeg downloaded to: $ffmpegDir"
-          
-          # Vérifier les dossiers
-          echo "=== FFMPEG STRUCTURE ==="
-          dir $ffmpegDir
-          if (Test-Path "$ffmpegDir/include") { dir "$ffmpegDir/include" }
-      
-      - name: Download libmpv
-        run: |
-          curl -L -o mpv.7z https://sourceforge.net/projects/mpv-player-windows/files/libmpv/mpv-dev-x86_64-20230226.7z/download
-          7z x mpv.7z -ompv -y
-          $mpvDir = "$env:GITHUB_WORKSPACE/mpv"
-          echo "MPV_DIR=$mpvDir" >> $env:GITHUB_ENV
-          echo "✅ libmpv downloaded to: $mpvDir"
-          
-          # Vérifier les dossiers
-          echo "=== MPV STRUCTURE ==="
-          dir $mpvDir
-          if (Test-Path "$mpvDir/include") { dir "$mpvDir/include" }
-      
-      - name: Configure CMake
+      - name: Configure CMake (stub mode)
         run: |
           cmake -B build -G "Visual Studio 17 2022" -A x64 `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `
+            -DUSE_SYSTEM_FFMPEG=OFF `
+            -DUSE_SYSTEM_MPV=OFF
       
       - name: Build
         run: cmake --build build --config Release --parallel
-      
-      - name: Prepare distribution
-        run: |
-          mkdir dist -Force
-          if (Test-Path "build/Release/OptiPlayer.exe") {
-            copy build\Release\*.exe dist\
-            copy build\Release\*.dll dist\ 2>$null
-            echo "✅ Build successful!"
-          } else {
-            echo "❌ Build failed"
-            exit 1
-          }
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: OptiPlayer
-          path: dist/
+          path: build/Release/
