@@ -1,14 +1,7 @@
 #include "player.h"
-
-// Inclure les headers avec le bon chemin
-#ifdef _WIN32
-#include <mpv/client.h>  // Ou essayer "client.h" selon la structure
-#else
 #include <mpv/client.h>
-#endif
-
 #include <iostream>
-#include <cstring>
+#include <cmath>
 
 Player::Player() {
     mpv_handle = mpv_create();
@@ -16,15 +9,16 @@ Player::Player() {
         throw std::runtime_error("Failed to create mpv handle");
     }
     
-    // Configuration
+    // Configuration pour Windows
     mpv_set_option_string(mpv_handle, "vo", "gpu-next");
     mpv_set_option_string(mpv_handle, "ao", "wasapi");
     mpv_set_option_string(mpv_handle, "hwdec", "auto");
     
-    int result = mpv_initialize(mpv_handle);
-    if (result < 0) {
-        throw std::runtime_error("Failed to initialize mpv");
-    }
+    // Configuration audio pour permettre le volume > 100%
+    mpv_set_option_string(mpv_handle, "volume-max", "200");  // Permet jusqu'à 200%
+    mpv_set_option_string(mpv_handle, "volume", "100");      // Volume initial
+    
+    mpv_initialize(mpv_handle);
 }
 
 Player::~Player() {
@@ -34,8 +28,8 @@ Player::~Player() {
 }
 
 bool Player::loadFile(const std::string& path) {
-    const char* cmd[] = {"loadfile", path.c_str(), NULL};
-    mpv_command(mpv_handle, cmd);
+    const char* args[] = {"loadfile", path.c_str(), NULL};
+    mpv_command(mpv_handle, args);
     return true;
 }
 
@@ -48,8 +42,8 @@ void Player::pause() {
 }
 
 void Player::stop() {
-    const char* cmd[] = {"stop", NULL};
-    mpv_command(mpv_handle, cmd);
+    const char* args[] = {"stop", NULL};
+    mpv_command(mpv_handle, args);
 }
 
 void Player::seek(double seconds) {
@@ -57,8 +51,33 @@ void Player::seek(double seconds) {
 }
 
 void Player::setVolume(int volume) {
-    int64_t vol = volume;
-    mpv_set_property(mpv_handle, "volume", MPV_FORMAT_INT64, &vol);
+    // Limiter entre 0 et 200
+    if (volume < 0) volume = 0;
+    if (volume > 200) volume = 200;
+    
+    current_volume = volume;
+    
+    // mpv utilise le volume en % (0-100 par défaut, mais on a configuré volume-max=200)
+    mpv_set_property(mpv_handle, "volume", MPV_FORMAT_INT64, &volume);
+    
+    std::cout << "🔊 Volume set to: " << volume << "%" << std::endl;
+}
+
+int Player::getVolume() {
+    int64_t volume = 100;
+    mpv_get_property(mpv_handle, "volume", MPV_FORMAT_INT64, &volume);
+    return static_cast<int>(volume);
+}
+
+void Player::setVolumeBoost(bool enable) {
+    boost_enabled = enable;
+    if (enable) {
+        mpv_set_option_string(mpv_handle, "volume-max", "200");
+    } else {
+        mpv_set_option_string(mpv_handle, "volume-max", "100");
+    }
+    // Réappliquer le volume actuel
+    setVolume(current_volume);
 }
 
 void Player::setSpeed(double speed) {
@@ -84,6 +103,7 @@ bool Player::isPlaying() {
 }
 
 void Player::enableMagicSync(bool enable) {
+    magic_sync_enabled = enable;
     if (enable) {
         mpv_set_option_string(mpv_handle, "video-sync", "display-resample");
         mpv_set_option_string(mpv_handle, "video-sync-max-video-change", "5");

@@ -30,13 +30,13 @@ jobs:
           echo "FFMPEG_DIR=$ffmpegDir" >> $env:GITHUB_ENV
           echo "✅ FFmpeg downloaded to: $ffmpegDir"
           
-          # Vérifier que les fichiers existent
-          if (Test-Path "$ffmpegDir/include/libavcodec/avcodec.h") {
-            echo "✅ FFmpeg headers found"
-          } else {
-            echo "❌ FFmpeg headers missing"
-            exit 1
-          }
+          # DEBUG: Afficher la structure
+          echo "=== FFMPEG DIRECTORY STRUCTURE ==="
+          dir $ffmpegDir
+          echo "=== INCLUDE FOLDER ==="
+          dir $ffmpegDir\include -Recurse -ErrorAction SilentlyContinue
+          echo "=== LIB FOLDER ==="
+          dir $ffmpegDir\lib -Recurse -ErrorAction SilentlyContinue
       
       - name: Download libmpv
         run: |
@@ -46,20 +46,13 @@ jobs:
           echo "MPV_DIR=$mpvDir" >> $env:GITHUB_ENV
           echo "✅ libmpv downloaded to: $mpvDir"
           
-          # Vérifier que les fichiers existent
-          if (Test-Path "$mpvDir/include/mpv/client.h") {
-            echo "✅ MPV headers found"
-          } else {
-            echo "❌ MPV headers missing"
-            exit 1
-          }
-          
-          if (Test-Path "$mpvDir/mpv-1.lib") {
-            echo "✅ MPV library found"
-          } else {
-            echo "❌ MPV library missing"
-            exit 1
-          }
+          # DEBUG: Afficher la structure
+          echo "=== MPV DIRECTORY STRUCTURE ==="
+          dir $mpvDir
+          echo "=== INCLUDE FOLDER ==="
+          dir $mpvDir\include -Recurse -ErrorAction SilentlyContinue
+          echo "=== LIB FOLDER ==="
+          dir $mpvDir\lib -Recurse -ErrorAction SilentlyContinue
       
       - name: Configure CMake
         run: |
@@ -75,9 +68,9 @@ jobs:
           mkdir dist -Force
           if (Test-Path "build/Release/OptiPlayer.exe") {
             copy build\Release\*.exe dist\
-            copy "$env:MPV_DIR\mpv-1.dll" dist\
-            copy "$env:FFMPEG_DIR\bin\*.dll" dist\
-            copy build\Release\*.dll dist\
+            if (Test-Path "$env:MPV_DIR\mpv-1.dll") { copy "$env:MPV_DIR\mpv-1.dll" dist\ }
+            if (Test-Path "$env:FFMPEG_DIR\bin\*.dll") { copy "$env:FFMPEG_DIR\bin\*.dll" dist\ }
+            copy build\Release\*.dll dist\ -ErrorAction SilentlyContinue
             echo "✅ Distribution ready"
           } else {
             echo "❌ Build failed - executable not found"

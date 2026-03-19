@@ -1,8 +1,7 @@
 #pragma once
 #include <string>
-#include <windows.h>  // IMPORTANT: pour HWND, HFONT, etc.
-
-class Player;  // Forward declaration
+#include <windows.h>
+#include "../core/player.h"
 
 class MainWindow {
 public:
@@ -16,19 +15,25 @@ public:
     // Callbacks
     void onPlayPause();
     void onOpenFile();
-    void onSeek(int position);
-    void onVolumeChange(int volume);
+    void onSeek(int position);  // 0-100
+    void onVolumeChange(int volume);  // 0-200
+    void onVolumeUp();
+    void onVolumeDown();
     void onMagicSync();
+    void onToggleBoost();
 
 private:
     Player* player;
-    HWND hwnd;  // Window handle - changer void* en HWND
-    HFONT hRobotoFont;  // Police Roboto
+    HWND hwnd;
+    HFONT hRobotoFont;
+    HWND hVolumeSlider;
+    HWND hVolumeLabel;
+    int current_volume = 100;
     
     void createWindow();
+    void createControls();
     void messageLoop();
-    void loadRobotoFont();
-    void applyTheme(const std::string& theme);
+    void updateVolumeDisplay();
     
     static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 };

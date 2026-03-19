@@ -1,16 +1,20 @@
 #include "mainwindow.h"
 #include "../core/player.h"
 #include <windows.h>
+#include <commctrl.h>
 #include <commdlg.h>
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <dwrite.h>
 #include <iostream>
 
-#pragma comment(lib, "dwrite.lib")
+#pragma comment(lib, "comctl32.lib")
 
-// Version Unicode des fonctions
+// Initialiser les contrôles communs
+#pragma comment(linker,"\"/manifestdependency:type='win32' \
+name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
+processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+
 std::wstring toWide(const std::string& str) {
     int size = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, NULL, 0);
     std::wstring wstr(size, 0);
@@ -18,61 +22,27 @@ std::wstring toWide(const std::string& str) {
     return wstr;
 }
 
-std::string loadTheme() {
-    const char* paths[] = {
-        "assets/themes/default.qss",
-        "../assets/themes/default.qss",
-        "./assets/themes/default.qss",
-        "../../assets/themes/default.qss"
-    };
-    
-    for (const char* path : paths) {
-        std::ifstream file(path);
-        if (file.is_open()) {
-            std::stringstream buffer;
-            buffer << file.rdbuf();
-            return buffer.str();
-        }
-    }
-    return "";
-}
-
-bool registerRobotoFonts() {
-    const char* fontPaths[] = {
-        "assets/fonts/roboto_regular.ttf",
-        "assets/fonts/roboto_medium.ttf",
-        "../assets/fonts/roboto_regular.ttf",
-        "../assets/fonts/roboto_medium.ttf"
-    };
-    
-    for (const char* path : fontPaths) {
-        std::ifstream file(path);
-        if (file.good()) {
-            std::wstring wpath = toWide(path);
-            AddFontResourceExW(wpath.c_str(), FR_PRIVATE, 0);
-        }
-    }
-    
-    SendMessageTimeoutW(HWND_BROADCAST, WM_FONTCHANGE, 0, 0, SMTO_ABORTIFHUNG, 1000, NULL);
-    return true;
-}
-
 MainWindow::MainWindow() {
-    registerRobotoFonts();
     player = new Player();
     player->enableMagicSync(true);
+    player->setVolume(100);  // Volume initial à 100%
+    current_volume = 100;
     createWindow();
 }
 
 MainWindow::~MainWindow() {
     delete player;
-    if (hRobotoFont) {
-        DeleteObject(hRobotoFont);
-    }
+    if (hRobotoFont) DeleteObject(hRobotoFont);
 }
 
 void MainWindow::createWindow() {
     HINSTANCE hInstance = GetModuleHandle(NULL);
+    
+    // Initialiser les contrôles communs
+    INITCOMMONCONTROLSEX icex;
+    icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
+    icex.dwICC = ICC_WIN95_CLASSES;
+    InitCommonControlsEx(&icex);
     
     WNDCLASSW wc = {};
     wc.lpfnWndProc = WndProc;
@@ -81,6 +51,7 @@ void MainWindow::createWindow() {
     wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wc.hIcon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(1));
     
     RegisterClassW(&wc);
     
@@ -93,9 +64,48 @@ void MainWindow::createWindow() {
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, (LONG_PTR)this);
 }
 
+void MainWindow::createControls() {
+    // Police Roboto
+    hRobotoFont = CreateFontW(
+        16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+        DEFAULT_QUALITY, DEFAULT_PITCH, L"Roboto"
+    );
+    
+    // Créer le slider de volume
+    hVolumeSlider = CreateWindowExW(
+        0, TRACKBAR_CLASSW, L"",
+        WS_CHILD | WS_VISIBLE | TBS_HORZ | TBS_TOOLTIPS,
+        1000, 650, 150, 30,
+        hwnd, (HMENU)101, GetModuleHandle(NULL), NULL
+    );
+    
+    // Configurer le slider pour 0-200
+    SendMessageW(hVolumeSlider, TBM_SETRANGE, TRUE, MAKELPARAM(0, 200));
+    SendMessageW(hVolumeSlider, TBM_SETPOS, TRUE, current_volume);
+    SendMessageW(hVolumeSlider, TBM_SETTICFREQ, 50, 0);  // Graduations tous les 50
+    
+    // Label pour afficher le volume
+    hVolumeLabel = CreateWindowExW(
+        0, L"STATIC", L"🔊 100%",
+        WS_CHILD | WS_VISIBLE | SS_CENTER,
+        1150, 650, 60, 30,
+        hwnd, (HMENU)102, GetModuleHandle(NULL), NULL
+    );
+    
+    SendMessageW(hVolumeLabel, WM_SETFONT, (WPARAM)hRobotoFont, TRUE);
+}
+
+void MainWindow::updateVolumeDisplay() {
+    wchar_t buffer[32];
+    wsprintfW(buffer, L"🔊 %d%%", current_volume);
+    SetWindowTextW(hVolumeLabel, buffer);
+}
+
 void MainWindow::show() {
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
+    createControls();  // Créer les contrôles après l'affichage
     messageLoop();
 }
 
@@ -141,11 +151,54 @@ void MainWindow::onSeek(int position) {
 }
 
 void MainWindow::onVolumeChange(int volume) {
+    current_volume = volume;
     player->setVolume(volume);
+    updateVolumeDisplay();
+    
+    // Feedback visuel selon le niveau
+    if (volume > 150) {
+        SetWindowTextW(hVolumeLabel, L"🔊🔊 150%+");
+    } else if (volume > 100) {
+        SetWindowTextW(hVolumeLabel, L"🔊🔊 100%+");
+    } else {
+        updateVolumeDisplay();
+    }
+}
+
+void MainWindow::onVolumeUp() {
+    int new_volume = min(current_volume + 10, 200);
+    SendMessageW(hVolumeSlider, TBM_SETPOS, TRUE, new_volume);
+    onVolumeChange(new_volume);
+}
+
+void MainWindow::onVolumeDown() {
+    int new_volume = max(current_volume - 10, 0);
+    SendMessageW(hVolumeSlider, TBM_SETPOS, TRUE, new_volume);
+    onVolumeChange(new_volume);
 }
 
 void MainWindow::onMagicSync() {
     player->fixSync();
+    MessageBoxW(hwnd, L"✨ Magic Sync activé !", L"OptiPlayer", MB_OK | MB_ICONINFORMATION);
+}
+
+void MainWindow::onToggleBoost() {
+    static bool boost = true;
+    boost = !boost;
+    player->setVolumeBoost(boost);
+    if (boost) {
+        SendMessageW(hVolumeSlider, TBM_SETRANGE, TRUE, MAKELPARAM(0, 200));
+        MessageBoxW(hwnd, L"🎵 Mode Boost activé (0-200%)", L"OptiPlayer", MB_OK | MB_ICONINFORMATION);
+    } else {
+        SendMessageW(hVolumeSlider, TBM_SETRANGE, TRUE, MAKELPARAM(0, 100));
+        if (current_volume > 100) {
+            current_volume = 100;
+            SendMessageW(hVolumeSlider, TBM_SETPOS, TRUE, 100);
+            player->setVolume(100);
+            updateVolumeDisplay();
+        }
+        MessageBoxW(hwnd, L"🔊 Mode Normal (0-100%)", L"OptiPlayer", MB_OK | MB_ICONINFORMATION);
+    }
 }
 
 void MainWindow::setTitle(const std::string& title) {
@@ -158,37 +211,40 @@ LRESULT CALLBACK MainWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
     
     switch (msg) {
         case WM_CREATE: {
-            // Créer police Roboto
-            window->hRobotoFont = CreateFontW(
-                16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-                DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                DEFAULT_QUALITY, DEFAULT_PITCH, L"Roboto"
-            );
-            
-            // Créer menu
             HMENU hMenu = CreateMenu();
             
             // File menu
             HMENU hFileMenu = CreatePopupMenu();
-            AppendMenuW(hFileMenu, MF_STRING, 1, L"&Open File...\tCtrl+O");
+            AppendMenuW(hFileMenu, MF_STRING, 1, L"📂 &Open File...\tCtrl+O");
             AppendMenuW(hFileMenu, MF_SEPARATOR, 0, NULL);
-            AppendMenuW(hFileMenu, MF_STRING, 2, L"E&xit\tAlt+F4");
-            AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hFileMenu, L"&File");
+            AppendMenuW(hFileMenu, MF_STRING, 2, L"❌ E&xit\tAlt+F4");
+            AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hFileMenu, L"📁 &File");
             
             // Playback menu
             HMENU hPlaybackMenu = CreatePopupMenu();
-            AppendMenuW(hPlaybackMenu, MF_STRING, 3, L"&Play/Pause\tSpace");
-            AppendMenuW(hPlaybackMenu, MF_STRING, 4, L"&Magic Sync\tF7");
-            AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hPlaybackMenu, L"&Playback");
+            AppendMenuW(hPlaybackMenu, MF_STRING, 3, L"▶️ &Play/Pause\tSpace");
+            AppendMenuW(hPlaybackMenu, MF_STRING, 4, L"⚡ &Magic Sync\tF7");
+            AppendMenuW(hPlaybackMenu, MF_SEPARATOR, 0, NULL);
+            AppendMenuW(hPlaybackMenu, MF_STRING, 5, L"🔊 Volume +10%\tCtrl+Up");
+            AppendMenuW(hPlaybackMenu, MF_STRING, 6, L"🔉 Volume -10%\tCtrl+Down");
+            AppendMenuW(hPlaybackMenu, MF_STRING, 7, L"🎵 Toggle Boost (100%/200%)\tCtrl+B");
+            AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hPlaybackMenu, L"🎮 &Playback");
             
             // View menu
             HMENU hViewMenu = CreatePopupMenu();
-            AppendMenuW(hViewMenu, MF_STRING, 5, L"&Fullscreen\tF11");
-            AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hViewMenu, L"&View");
+            AppendMenuW(hViewMenu, MF_STRING, 8, L"🖥️ &Fullscreen\tF11");
+            AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hViewMenu, L"👁️ &View");
             
             SetMenu(hwnd, hMenu);
             break;
         }
+        
+        case WM_HSCROLL:
+            if (window && (HWND)lParam == window->hVolumeSlider) {
+                int volume = SendMessageW(window->hVolumeSlider, TBM_GETPOS, 0, 0);
+                window->onVolumeChange(volume);
+            }
+            break;
         
         case WM_COMMAND:
             if (window) {
@@ -197,6 +253,33 @@ LRESULT CALLBACK MainWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                     case 2: PostQuitMessage(0); break;
                     case 3: window->onPlayPause(); break;
                     case 4: window->onMagicSync(); break;
+                    case 5: window->onVolumeUp(); break;
+                    case 6: window->onVolumeDown(); break;
+                    case 7: window->onToggleBoost(); break;
+                    case 8: 
+                        // Fullscreen (à implémenter)
+                        break;
+                }
+            }
+            break;
+        
+        case WM_KEYDOWN:
+            if (window) {
+                if (GetKeyState(VK_CONTROL) & 0x8000) {
+                    switch (wParam) {
+                        case VK_UP: window->onVolumeUp(); break;
+                        case VK_DOWN: window->onVolumeDown(); break;
+                        case 'B': window->onToggleBoost(); break;
+                        case 'O': window->onOpenFile(); break;
+                    }
+                } else {
+                    switch (wParam) {
+                        case VK_SPACE: window->onPlayPause(); break;
+                        case VK_F7: window->onMagicSync(); break;
+                        case VK_F11: 
+                            // Fullscreen
+                            break;
+                    }
                 }
             }
             break;
